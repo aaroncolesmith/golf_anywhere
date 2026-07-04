@@ -313,8 +313,11 @@ const patches=[];   // {x0,x1,z0,z1,fn(x,z)->y | y, kind}
 const trunks=[];    // {x,z,r,top}
 const canopies=[];  // {x,y,z,r}
 const perFrame=[];  // fns(t,dt)
+const movers=[];    // {x0,y0,z0,x1,y1,z1,vx,vz} — moving obstacles (traffic, pedestrians, transit),
+                     // updated in place by their own perFrame callback so the ball can bounce off them
 
 function addSolid(x0,y0,z0,x1,y1,z1,kind){solids.push({x0,y0,z0,x1,y1,z1,kind:kind||'wall'});}
+function addMover(){const m={x0:0,y0:0,z0:0,x1:0,y1:0,z1:0,vx:0,vz:0};movers.push(m);return m;}
 function addPatch(x0,x1,z0,z1,fnOrY,kind){
   patches.push({x0,x1,z0,z1,fn:(typeof fnOrY==='function')?fnOrY:null,y:(typeof fnOrY==='number')?fnOrY:0,kind:kind||'deck'});}
 
@@ -2626,10 +2629,11 @@ const inGardenZone=(x,z)=>x>-822&&x<-712&&z>8&&z<162;
     else{routes.push({axis:'x',c:sz,min:-446,max:-36});
       routes.push({axis:'x',c:sz,min:154,max:392});}
   }
-  const cars=[];
+  const cars=[],carMovers=[];
   for(let i=0;i<N;i++){
     const r=pick(routes),dir=rand()<0.5?1:-1;
     cars.push({r,dir,pos:rr(r.min,r.max),speed:rr(8,14),lane:2.7*dir});
+    carMovers.push(addMover());
     bodies.setColorAt(i,new THREE.Color(pick(palette)));
   }
   bodies.instanceColor.needsUpdate=true;
@@ -2675,6 +2679,7 @@ const inGardenZone=(x,z)=>x>-822&&x<-712&&z>8&&z<162;
   }
   const m=M4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),
     one=new THREE.Vector3(1,1,1),tv=new THREE.Vector3();
+  const CAR_HW=1.75/2,CAR_HL=3.9/2,CAR_H=1.3;
   perFrame.push((t,dt)=>{
     for(let i=0;i<N;i++){
       const c=cars[i];
@@ -2687,6 +2692,10 @@ const inGardenZone=(x,z)=>x>-822&&x<-712&&z>8&&z<162;
       q.setFromAxisAngle(up,yaw);
       m.compose(tv.set(x,y,z),q,one);
       bodies.setMatrixAt(i,m);cabins.setMatrixAt(i,m);lights.setMatrixAt(i,m);
+      const mv=carMovers[i];
+      if(c.r.axis==='z'){mv.x0=x-CAR_HW;mv.x1=x+CAR_HW;mv.z0=z-CAR_HL;mv.z1=z+CAR_HL;mv.vx=0;mv.vz=c.dir*c.speed;}
+      else{mv.x0=x-CAR_HL;mv.x1=x+CAR_HL;mv.z0=z-CAR_HW;mv.z1=z+CAR_HW;mv.vx=c.dir*c.speed;mv.vz=0;}
+      mv.y0=y;mv.y1=y+CAR_H;
     }
     bodies.instanceMatrix.needsUpdate=true;cabins.instanceMatrix.needsUpdate=true;
     lights.instanceMatrix.needsUpdate=true;
@@ -2723,11 +2732,12 @@ const SKIN=[0xe8c4a0,0xc89878,0x8a5a3a,0xf0d0b0,0x6a4530,0xd8a888];
   lanes.push({axis:'x',c:30,min:-266,max:-214});
   lanes.push({axis:'x',c:52,min:-266,max:-214});
   const clothes=[0x5a6a7a,0x7a4a3a,0x3a5a44,0x6a5a7a,0x8a8378,0x2f3e4e,0x9a5a2a,0x4a6a8a,0x704545];
-  const peds=[];
+  const peds=[],pedMovers=[];
   for(let i=0;i<N;i++){
     const l=pick(lanes);
     peds.push({l,pos:rr(l.min,l.max),dir:rand()<0.5?1:-1,speed:rr(1.1,2.0),
       ph:rr(0,6.28),s:rr(0.85,1.05)});
+    pedMovers.push(addMover());
     im.setColorAt(i,new THREE.Color(pick(clothes)));
   }
   im.instanceColor.needsUpdate=true;scene.add(im);
@@ -2768,6 +2778,9 @@ const SKIN=[0xe8c4a0,0xc89878,0x8a5a3a,0xf0d0b0,0x6a4530,0xd8a888];
       qs.setFromAxisAngle(ax,-swing);qs.premultiply(q);
       m.compose(tv.set(x+rx,y+0.86*p.s,z+rz),qs,ts);
       legR.setMatrixAt(i,m);
+      const mv=pedMovers[i],hw=0.3*p.s;
+      mv.x0=x-hw;mv.x1=x+hw;mv.z0=z-hw;mv.z1=z+hw;mv.y0=y;mv.y1=y+1.75*p.s;
+      mv.vx=p.l.axis==='x'?p.dir*p.speed:0;mv.vz=p.l.axis==='z'?p.dir*p.speed:0;
     }
     im.instanceMatrix.needsUpdate=true;
     heads.instanceMatrix.needsUpdate=true;
@@ -2796,6 +2809,7 @@ const SKIN=[0xe8c4a0,0xc89878,0x8a5a3a,0xf0d0b0,0x6a4530,0xd8a888];
   tram.position.set(-280,0,0);scene.add(tram);
   const stops=[-240,-80,80,240];
   let tPos=-380,tDir=1,tSpeed=0,pause=0;
+  const tramMover=addMover();
   perFrame.push((t,dt)=>{
     if(pause>0){pause-=dt;tSpeed=0;}
     else{
@@ -2809,6 +2823,8 @@ const SKIN=[0xe8c4a0,0xc89878,0x8a5a3a,0xf0d0b0,0x6a4530,0xd8a888];
     }
     tram.position.z=tPos;
     tram.rotation.y=tDir>0?0:Math.PI;
+    tramMover.x0=-281.2;tramMover.x1=-278.8;tramMover.z0=tPos-10.75;tramMover.z1=tPos+10.75;
+    tramMover.y0=0.1;tramMover.y1=3.0;tramMover.vz=tDir*tSpeed;
   });
 }
 { // ---- TriMet buses on Burnside & Madison, with shelters ----
@@ -2834,7 +2850,7 @@ const SKIN=[0xe8c4a0,0xc89878,0x8a5a3a,0xf0d0b0,0x6a4530,0xd8a888];
       w.rotation.z=Math.PI/2;w.position.set(wx,0.42,wz);bus.add(w);
     }
     scene.add(bus);
-    buses.push({g:bus,z:bz,pos:rr(-350,350),dir:1,speed:0,pause:0});
+    buses.push({g:bus,z:bz,pos:rr(-350,350),dir:1,speed:0,pause:0,mv:addMover()});
   }
   perFrame.push((t,dt)=>{
     for(const b of buses){
@@ -2847,8 +2863,11 @@ const SKIN=[0xe8c4a0,0xc89878,0x8a5a3a,0xf0d0b0,0x6a4530,0xd8a888];
         if(b.pos>388){b.pos=388;b.dir=-1;b.pause=6;}
         if(b.pos<-432){b.pos=-432;b.dir=1;b.pause=6;}
       }
-      b.g.position.set(b.pos,deckH(b.pos),b.z+3*b.dir);
+      const by=deckH(b.pos),bz=b.z+3*b.dir;
+      b.g.position.set(b.pos,by,bz);
       b.g.rotation.y=b.dir>0?Math.PI/2:-Math.PI/2;
+      b.mv.x0=b.pos-5.75;b.mv.x1=b.pos+5.75;b.mv.z0=bz-1.25;b.mv.z1=bz+1.25;
+      b.mv.y0=by+0.33;b.mv.y1=by+3.23;b.mv.vx=b.dir*b.speed;b.mv.vz=0;
     }
   });
   // shelters on the north sidewalk of each route
@@ -3575,8 +3594,12 @@ function autoClub(){
   const d=Math.hypot(golf.ball.x-golf.hole.pin.x,golf.ball.z-golf.hole.pin.z);
   const lie=lieAt(golf.ball.x,golf.ball.z,'terrain');
   if(lie.name==='Green'){golf.clubIdx=7;return;}
+  // pick the shortest club that still reaches the pin (least overshoot) —
+  // only fall back to something longer (up to the Driver) if nothing shorter can get there.
   let idx=0;
-  for(let i=CLUBS.length-2;i>=0;i--)if(CLUBS[i].carry*lie.mul>=d-6){idx=i;}
+  for(let i=CLUBS.length-2;i>=0;i--){
+    if(CLUBS[i].carry*lie.mul>=d-6){idx=i;break;}
+  }
   golf.clubIdx=idx;
 }
 function startAddress(){
@@ -3765,6 +3788,24 @@ function updateBall(dt){
       const vn=v.dot(n);
       if(vn<0){v.addScaledVector(n,-vn*1.55);v.multiplyScalar(0.72);
         if(Math.abs(vn)>2)sfx.bounce(Math.abs(vn)*0.4);}
+    }
+    // moving obstacles — traffic, pedestrians, transit (struck like a solid, but pass on some of their own momentum)
+    for(const s of movers){
+      const nx=clamp(p.x,s.x0,s.x1),ny=clamp(p.y,s.y0,s.y1),nz=clamp(p.z,s.z0,s.z1);
+      const dx=p.x-nx,dy=p.y-ny,dz=p.z-nz;
+      const d2=dx*dx+dy*dy+dz*dz;
+      if(d2>=BALL_R*BALL_R||d2<1e-10)continue;
+      const d=Math.sqrt(d2);
+      const n=new THREE.Vector3(dx/d,dy/d,dz/d);
+      p.set(nx+n.x*BALL_R,ny+n.y*BALL_R,nz+n.z*BALL_R);
+      const rvx=v.x-s.vx,rvz=v.z-s.vz;
+      const vn=rvx*n.x+v.y*n.y+rvz*n.z;
+      if(vn<0){
+        const j=-vn*1.6;
+        v.x+=n.x*j+s.vx*0.55;v.y+=n.y*j;v.z+=n.z*j+s.vz*0.55;
+        v.multiplyScalar(0.7);
+        sfx.bounce(Math.max(Math.abs(vn),Math.hypot(s.vx,s.vz))*0.4);
+      }
     }
     // tree trunks
     for(const t of trunks){
@@ -3987,7 +4028,7 @@ $('startBtn').addEventListener('click',beginGame);
 // DEBUG / SELF-TEST HARNESS (drives the real physics + collision)
 // ================================================================
 window.__GA={
-  ready:true,player,golf,WX,camera,
+  ready:true,player,golf,WX,camera,movers,solids,
   manual(v){manualPhysics=v;},
   begin(){beginGame();},
   teleport(x,z,yaw){
