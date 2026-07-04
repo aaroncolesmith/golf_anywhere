@@ -115,6 +115,7 @@
   #touchControls{position:fixed;inset:0;z-index:6;pointer-events:none;display:none}
   html.touch #touchControls{display:block}
   html.touch #crosshair{opacity:.6}
+  html.touch #hint{display:none}
   #tcLook{position:absolute;right:0;top:0;width:58%;height:100%;pointer-events:auto}
   #tcJoyZone{position:absolute;left:22px;bottom:22px;width:132px;height:132px;border-radius:50%;
     background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);pointer-events:auto}
@@ -263,6 +264,8 @@ if(IS_TOUCH){
   document.documentElement.classList.add('touch');
   document.getElementById('colsKeys').style.display='none';
   document.getElementById('colsTouch').style.display='grid';
+  document.getElementById('startFoot').textContent=
+    '100% procedural geometry · Three.js · one self-contained file · touch controls to explore the Waterfront, Pioneer Courthouse Square & the Rose Garden';
 }
 
 // ---------- deterministic RNG ----------
