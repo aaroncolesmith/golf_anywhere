@@ -3248,10 +3248,10 @@ function updatePlayer(dt){
 }
 
 function applyCamera(){
-  if(golf.state==='explore'||golf.state==='flight'){
+  if(golf.state==='explore'){
     camera.position.copy(player.pos);
     camera.rotation.set(player.pitch,player.yaw,0);
-  } // during address/meter the golf system positions the camera
+  } // during address/meter/flight/flyback the golf system positions the camera
   // head-bob
   if(golf.state==='explore'&&player.grounded){
     const sp=Math.hypot(player.vel.x,player.vel.z);
@@ -3280,7 +3280,9 @@ for(const c of CLUBS){
 const golf={state:'explore',hole:null,strokes:0,clubIdx:0,aimYaw:0,beacon:true,
   ball:new THREE.Vector3(),ballVel:new THREE.Vector3(),ballResting:true,ballAir:false,
   curve:0,wind:{x:0,z:0,spd:0},lastLand:new THREE.Vector3(),shotStart:new THREE.Vector3(),
-  meter:{phase:'idle',pos:0,dir:1,power:0,speed:95},holesPlayed:0,totalVsPar:0,pinY:0};
+  meter:{phase:'idle',pos:0,dir:1,power:0,speed:95},holesPlayed:0,totalVsPar:0,pinY:0,
+  shotDir:new THREE.Vector3(0,0,1),camInit:false,flyback:null};
+const _v1=new THREE.Vector3();
 
 // --- persistent meshes ---
 const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BALL_R,14,10),
@@ -3681,11 +3683,19 @@ function fireShot(power01,accRaw){
   golf.strokes++;
   golf.shotStart.copy(golf.ball);
   golf.lastLand.copy(golf.ball);
+  golf.shotDir.copy(d);golf.camInit=false;
   golf.state='flight';
   $('meterWrap').classList.remove('on');
   aimLine.visible=false;landRing.visible=false;
   setHint(HINT_BALL);
   updateGolfHUD();
+}
+
+function startFlyback(){
+  if(golf.state!=='flight')return;
+  const toQuat=new THREE.Quaternion().setFromEuler(new THREE.Euler(player.pitch,player.yaw,0,'XYZ'));
+  golf.flyback={fromPos:camera.position.clone(),fromQuat:camera.quaternion.clone(),toQuat,t:0,dur:1.0};
+  golf.state='flyback';
 }
 
 // --- ball physics ---
@@ -3709,7 +3719,7 @@ function splashPenalty(){
   golf.ball.y=supportAt(golf.ball.x,golf.ball.z,1e5,1e9).y+BALL_R;
   golf.ballVel.set(0,0,0);
   golf.ballResting=true;golf.ballAir=false;
-  golf.state=(golf.state==='flight')?'explore':golf.state;
+  if(golf.state==='flight')startFlyback();
   bigMsg('💦 SPLASH','1600');
   toast('In the Willamette! +1 penalty — ball dropped at the bank.');
   updateGolfHUD();
@@ -3816,7 +3826,7 @@ function ballAtRest(){
   const pin=golf.hole.pin;
   const dCup=Math.hypot(golf.ball.x-pin.x,golf.ball.z-pin.z);
   if(dCup<0.55){holedOut();return;}
-  if(golf.state==='flight')golf.state='explore';
+  if(golf.state==='flight')startFlyback();
   const carry=Math.round(golf.ball.distanceTo(golf.shotStart)*YD);
   const lie=lieAt(golf.ball.x,golf.ball.z,
     supportAt(golf.ball.x,golf.ball.z,golf.ball.y,0.5).kind);
@@ -3863,11 +3873,27 @@ function updateGolf(dt){
     const d=dirFromYaw(golf.aimYaw);
     camera.position.set(golf.ball.x-d.x*2.9,golf.ball.y+1.72,golf.ball.z-d.z*2.9);
     camera.rotation.set(player.pitch-0.05,golf.aimYaw,0);
+  }else if(golf.state==='flight'){
+    // chase cam: trails the ball along the shot line so you can watch it fly and land
+    const d=golf.shotDir,behind=9,up=3.4;
+    const tx=golf.ball.x-d.x*behind,tz=golf.ball.z-d.z*behind;
+    const groundY=supportAt(tx,tz,golf.ball.y+up,2).y;
+    const ty=Math.max(golf.ball.y+up,groundY+1.4);
+    if(!golf.camInit){camera.position.set(tx,ty,tz);golf.camInit=true;}
+    else camera.position.lerp(_v1.set(tx,ty,tz),clamp(dt*2.6,0,1));
+    camera.lookAt(golf.ball.x,golf.ball.y+0.25,golf.ball.z);
+  }else if(golf.state==='flyback'){
+    // ease the camera from wherever the flight-cam ended back to the golfer's first-person view
+    const fb=golf.flyback,k=smoothstep(0,1,clamp(fb.t/fb.dur,0,1));
+    camera.position.lerpVectors(fb.fromPos,player.pos,k);
+    camera.quaternion.slerpQuaternions(fb.fromQuat,fb.toQuat,k);
+    fb.t+=dt;
+    if(fb.t>=fb.dur){golf.state='explore';camera.position.copy(player.pos);camera.rotation.set(player.pitch,player.yaw,0);}
   }
   // first-person club pose
   {
     const inSetup=(golf.state==='address'||golf.state==='power'||golf.state==='accuracy');
-    clubGroup.visible=inSetup||swingAnim>=0;
+    clubGroup.visible=inSetup;
     if(inSetup){
       let back=0;
       if(golf.state==='power'||golf.state==='accuracy')back=clamp(golf.meter.pos,0,100)/100;
