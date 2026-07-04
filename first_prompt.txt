@@ -1,0 +1,12 @@
+I want to show people what you can one-shot, so aim for the top of your range - this should feel like a game studio tech demo, not a placeholder.
+
+Build me a fully explorable 3D rendering of Portland, Oregon in the browser, as ONE self-contained index.html using Three.js loaded from a CDN. No build step, no external assets - all geometry procedural. I want this to be a basis for a "golf anywhere" type of game where a user can set the tee box and a par 4 is automatically generated that they can golf to. Buildings, benches, rivers, etc. are obstacles that the golfer needs to avoid. Also because we want this to be a game where the user can explore, they have to go find their ball, it doesn't automatically go to the next shot.
+
+It needs:
+
+First-person controls: WASD to walk, mouse to look, Shift to run, Space to jump. When the ball has been addressed a arrows will cycle through clubs and then a simple space bar operation to set power and accuracy, similar to something like Mario Golf.
+Atmosphere: make it two options -- one is a sunny summer day in portland, the other is a gloomy day one would expect in Portland.
+An on-screen label telling me which area I'm in, plus a start screen showing the controls
+Collision, so I can't walk through walls or fall through floors
+
+Before you build, interview me - at least 3 quick questions in one batch so we're aligned on the end result: the world, the mood, and the three places I most want to walk through. After that, act - don't give me options or a plan, give me the file. Before you report done, verify your own work: open the file, check the console for errors, and confirm every named area is reachable on foot. Only claim what you actually verified.

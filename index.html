@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛳</text></svg>">
 <title>Portland: Golf Anywhere</title>
 <style>
@@ -109,6 +109,36 @@
   #pause{position:fixed;inset:0;z-index:15;display:none;align-items:center;justify-content:center;
     background:rgba(5,8,11,.55);color:#fff;font-size:20px;font-weight:700;letter-spacing:.5px;cursor:pointer}
   #pause.on{display:flex}
+
+  /* ---------- touch controls ---------- */
+  html.touch, html.touch body{touch-action:none;overscroll-behavior:none}
+  #touchControls{position:fixed;inset:0;z-index:6;pointer-events:none;display:none}
+  html.touch #touchControls{display:block}
+  html.touch #crosshair{opacity:.6}
+  #tcLook{position:absolute;right:0;top:0;width:58%;height:100%;pointer-events:auto}
+  #tcJoyZone{position:absolute;left:22px;bottom:22px;width:132px;height:132px;border-radius:50%;
+    background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);pointer-events:auto}
+  #tcJoyNub{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;
+    border-radius:50%;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.45)}
+  .tcBtn{position:absolute;pointer-events:auto;display:flex;align-items:center;justify-content:center;
+    text-align:center;border-radius:50%;background:rgba(20,26,32,.6);border:2px solid rgba(255,255,255,.3);
+    color:#fff;font-weight:800;font-size:11px;line-height:1.15;-webkit-user-select:none;user-select:none}
+  #tcJump{right:22px;bottom:118px;width:64px;height:64px;font-size:11px}
+  #tcRun{right:104px;bottom:34px;width:54px;height:54px;font-size:10px}
+  #tcInteract{right:26px;bottom:34px;width:54px;height:54px;font-size:15px}
+  #tcRun.active{background:rgba(127,208,127,.45);border-color:rgba(127,208,127,.8)}
+  #tcSwing{left:50%;bottom:150px;transform:translateX(-50%);width:92px;height:92px;font-size:13px;
+    background:rgba(127,208,127,.32);border-color:rgba(127,208,127,.7);display:none}
+  #tcClubUp,#tcClubDown{right:22px;width:46px;height:46px;font-size:17px;display:none}
+  #tcClubUp{bottom:236px}
+  #tcClubDown{bottom:184px}
+  .tcSide{left:14px;width:44px;height:44px;font-size:16px}
+  #tcWx{top:110px}
+  #tcBeacon{top:162px}
+  #tcMute{top:214px}
+  #tcAbandon{top:266px;font-size:13px}
+  html.touch.st-setup #tcJoyZone,html.touch.st-setup #tcJump,html.touch.st-setup #tcRun{display:none}
+  html.touch.st-setup #tcSwing,html.touch.st-setup #tcClubUp,html.touch.st-setup #tcClubDown{display:flex}
 </style>
 </head>
 <body>
@@ -150,11 +180,26 @@
 
 <div id="pause"><div>PAUSED — click to resume</div></div>
 
+<div id="touchControls">
+  <div id="tcLook"></div>
+  <div id="tcJoyZone"><div id="tcJoyNub"></div></div>
+  <div id="tcJump" class="tcBtn">JUMP</div>
+  <div id="tcRun" class="tcBtn">RUN</div>
+  <div id="tcInteract" class="tcBtn">E</div>
+  <div id="tcSwing" class="tcBtn">SWING</div>
+  <div id="tcClubUp" class="tcBtn">▲</div>
+  <div id="tcClubDown" class="tcBtn">▼</div>
+  <div id="tcWx" class="tcBtn tcSide">☀️</div>
+  <div id="tcBeacon" class="tcBtn tcSide">🔦</div>
+  <div id="tcMute" class="tcBtn tcSide">🔊</div>
+  <div id="tcAbandon" class="tcBtn tcSide">✕</div>
+</div>
+
 <div id="start">
   <div id="startCard">
     <h1>PORTLAND <span>· GOLF ANYWHERE</span></h1>
     <div class="tag">A fully procedural slice of the Rose City — walk it, then golf it. Set a tee box anywhere and a par 4 appears. Hit your shot… then go find your ball.</div>
-    <div class="cols">
+    <div class="cols" id="colsKeys">
       <div><span>Walk</span><span class="k">W A S D</span></div>
       <div><span>Look</span><span class="k">Mouse</span></div>
       <div><span>Run</span><span class="k">Shift</span></div>
@@ -167,6 +212,20 @@
       <div><span>Ball beacon</span><span class="k">B</span></div>
       <div><span>Abandon hole</span><span class="k">N</span></div>
       <div><span>Mute</span><span class="k">M</span></div>
+    </div>
+    <div class="cols" id="colsTouch" style="display:none">
+      <div><span>Walk</span><span class="k">Left stick</span></div>
+      <div><span>Look</span><span class="k">Drag right side</span></div>
+      <div><span>Run</span><span class="k">RUN button</span></div>
+      <div><span>Jump</span><span class="k">JUMP button</span></div>
+      <div><span>Set tee box / address ball</span><span class="k">E button</span></div>
+      <div><span>Swing meter (3-tap)</span><span class="k">SWING button</span></div>
+      <div><span>Cycle clubs</span><span class="k">▲ ▼ buttons</span></div>
+      <div><span>Aim shot</span><span class="k">Drag right side</span></div>
+      <div><span>Sun / gloom</span><span class="k">☀️ button</span></div>
+      <div><span>Ball beacon</span><span class="k">🔦 button</span></div>
+      <div><span>Abandon hole</span><span class="k">✕ button</span></div>
+      <div><span>Mute</span><span class="k">🔊 button</span></div>
     </div>
     <div id="wxRow">
       <div class="wxCard sel" data-wx="sunny"><b>☀️ Summer Day</b><i>Blue sky, warm light, Mt. Hood on the horizon</i></div>
@@ -198,6 +257,13 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
    ================================================================ */
 
 const TEST_MODE = new URLSearchParams(location.search).has('test');
+const IS_TOUCH = new URLSearchParams(location.search).has('touch') ||
+  ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+if(IS_TOUCH){
+  document.documentElement.classList.add('touch');
+  document.getElementById('colsKeys').style.display='none';
+  document.getElementById('colsTouch').style.display='grid';
+}
 
 // ---------- deterministic RNG ----------
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
@@ -2974,6 +3040,11 @@ const keys={};
 let started=false,paused=false,pointerLocked=false;
 const input={fwd:0,strafe:0,run:false,jumpQueued:false};
 
+function cycleWeather(){const order=['sunny','dusk','gloom','night'];
+  WX.set(order[(order.indexOf(WX.mode)+1)%order.length]);sfx.ui();}
+function toggleBeacon(){golf.beacon=!golf.beacon;toast(golf.beacon?'Ball beacon ON':'Ball beacon OFF');}
+function toggleMute(){sfx.muted=!sfx.muted;toast(sfx.muted?'🔇 Muted':'🔊 Sound on');}
+
 addEventListener('keydown',e=>{
   if(e.repeat)return;
   keys[e.code]=true;
@@ -2983,35 +3054,113 @@ addEventListener('keydown',e=>{
     else golfSpace();
   }
   if(e.code==='KeyE')golfInteract();
-  if(e.code==='KeyT'){const order=['sunny','dusk','gloom','night'];
-    WX.set(order[(order.indexOf(WX.mode)+1)%order.length]);sfx.ui();}
-  if(e.code==='KeyB'){golf.beacon=!golf.beacon;toast(golf.beacon?'Ball beacon ON':'Ball beacon OFF');}
+  if(e.code==='KeyT')cycleWeather();
+  if(e.code==='KeyB')toggleBeacon();
   if(e.code==='KeyN')golfAbandon();
-  if(e.code==='KeyM'){sfx.muted=!sfx.muted;toast(sfx.muted?'🔇 Muted':'🔊 Sound on');}
+  if(e.code==='KeyM')toggleMute();
   if(e.code==='ArrowUp'){e.preventDefault();golfClub(-1);}
   if(e.code==='ArrowDown'){e.preventDefault();golfClub(1);}
 });
 addEventListener('keyup',e=>{keys[e.code]=false;});
+function applyLook(mx,my,scale){
+  scale=scale||1;
+  if(golf.state==='address'){
+    golf.aimYaw-=mx*0.0016*scale;golfAimChanged();
+    player.pitch=clamp(player.pitch-my*0.0016*scale,-1.2,0.6);
+  }else if(golf.state==='explore'){
+    player.yaw-=mx*0.0021*scale;
+    player.pitch=clamp(player.pitch-my*0.0021*scale,-1.45,1.45);
+  }
+}
 addEventListener('mousemove',e=>{
   if(!pointerLocked&&!TEST_MODE)return;
-  const mx=e.movementX||0,my=e.movementY||0;
-  if(golf.state==='address'){
-    golf.aimYaw-=mx*0.0016;golfAimChanged();
-    player.pitch=clamp(player.pitch-my*0.0016,-1.2,0.6);
-  }else if(golf.state==='explore'){
-    player.yaw-=mx*0.0021;
-    player.pitch=clamp(player.pitch-my*0.0021,-1.45,1.45);
-  }
+  applyLook(e.movementX||0,e.movementY||0);
 });
 document.addEventListener('pointerlockchange',()=>{
   pointerLocked=(document.pointerLockElement===renderer.domElement);
-  if(started&&!pointerLocked&&!TEST_MODE){paused=true;$('pause').classList.add('on');}
+  if(started&&!pointerLocked&&!TEST_MODE&&!IS_TOUCH){paused=true;$('pause').classList.add('on');}
   else{paused=false;$('pause').classList.remove('on');}
 });
 $('pause').addEventListener('click',()=>renderer.domElement.requestPointerLock());
 renderer.domElement.addEventListener('click',()=>{
-  if(started&&!pointerLocked&&!TEST_MODE)renderer.domElement.requestPointerLock();
+  if(started&&!pointerLocked&&!TEST_MODE&&!IS_TOUCH)renderer.domElement.requestPointerLock();
 });
+
+/* ---------- touch controls ---------- */
+if(IS_TOUCH){
+  function tcButton(el,onStart,onEnd){
+    el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();onStart&&onStart();},{passive:false});
+    if(onEnd)el.addEventListener('touchend',e=>{e.preventDefault();onEnd();},{passive:false});
+  }
+  // movement joystick -> synthesized WASD
+  (function(){
+    const zone=$('tcJoyZone'),nub=$('tcJoyNub');
+    let id=null,cx=0,cy=0;const R=48;
+    const reset=()=>{keys.KeyW=keys.KeyS=keys.KeyA=keys.KeyD=false;nub.style.transform='';};
+    zone.addEventListener('touchstart',e=>{
+      if(id!==null)return;
+      const t=e.changedTouches[0];id=t.identifier;
+      const r=zone.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;
+      e.preventDefault();
+    },{passive:false});
+    zone.addEventListener('touchmove',e=>{
+      for(const t of e.changedTouches){
+        if(t.identifier!==id)continue;
+        let dx=t.clientX-cx,dy=t.clientY-cy;
+        const d=Math.hypot(dx,dy);
+        if(d>R){dx=dx/d*R;dy=dy/d*R;}
+        nub.style.transform=`translate(${dx}px,${dy}px)`;
+        const nx=dx/R,ny=dy/R;
+        keys.KeyW=ny<-0.28;keys.KeyS=ny>0.28;keys.KeyA=nx<-0.28;keys.KeyD=nx>0.28;
+        e.preventDefault();
+      }
+    },{passive:false});
+    const end=e=>{
+      for(const t of e.changedTouches){if(t.identifier!==id)continue;id=null;reset();}
+    };
+    zone.addEventListener('touchend',end);
+    zone.addEventListener('touchcancel',end);
+  })();
+  // look / aim drag on the right side of the screen
+  (function(){
+    const zone=$('tcLook');
+    let id=null,lx=0,ly=0;
+    zone.addEventListener('touchstart',e=>{
+      if(id!==null)return;
+      const t=e.changedTouches[0];id=t.identifier;lx=t.clientX;ly=t.clientY;
+      e.preventDefault();
+    },{passive:false});
+    zone.addEventListener('touchmove',e=>{
+      for(const t of e.changedTouches){
+        if(t.identifier!==id)continue;
+        const mx=t.clientX-lx,my=t.clientY-ly;
+        lx=t.clientX;ly=t.clientY;
+        applyLook(mx,my,1.7);
+        e.preventDefault();
+      }
+    },{passive:false});
+    const end=e=>{for(const t of e.changedTouches)if(t.identifier===id)id=null;};
+    zone.addEventListener('touchend',end);
+    zone.addEventListener('touchcancel',end);
+  })();
+  tcButton($('tcJump'),()=>{if(golf.state==='explore')input.jumpQueued=true;});
+  tcButton($('tcRun'),()=>{
+    const on=!keys.ShiftLeft;keys.ShiftLeft=on;$('tcRun').classList.toggle('active',on);
+  });
+  tcButton($('tcInteract'),()=>golfInteract());
+  tcButton($('tcSwing'),()=>golfSpace());
+  tcButton($('tcClubUp'),()=>golfClub(-1));
+  tcButton($('tcClubDown'),()=>golfClub(1));
+  tcButton($('tcWx'),()=>cycleWeather());
+  tcButton($('tcBeacon'),()=>toggleBeacon());
+  tcButton($('tcMute'),()=>toggleMute());
+  tcButton($('tcAbandon'),()=>golfAbandon());
+  let lastSetup=null;
+  perFrame.push(()=>{
+    const setup=(golf.state==='power'||golf.state==='accuracy'||golf.state==='address');
+    if(setup!==lastSetup){lastSetup=setup;document.documentElement.classList.toggle('st-setup',setup);}
+  });
+}
 
 function collidePlayer(){
   const R=0.45,feet=player.pos.y-EYE;
@@ -3800,7 +3949,7 @@ function beginGame(){
   $('start').classList.add('hidden');
   hudEl.classList.add('on');
   setHint(HINT_EXPLORE);
-  if(!TEST_MODE)renderer.domElement.requestPointerLock();
+  if(!TEST_MODE&&!IS_TOUCH)renderer.domElement.requestPointerLock();
   setTimeout(()=>toast('Welcome to Portland. Walk anywhere, then press <b>E</b> to set a tee box and play a par 4 through the city.',5200),800);
 }
 $('startBtn').addEventListener('click',beginGame);
